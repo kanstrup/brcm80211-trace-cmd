@@ -395,7 +395,43 @@ def dmpdesc_event_handler(pevent, traceseq, event):
     dtype = desc & 0xF
     dmp_state = dmp_desc_handlers[dmp_state](traceseq, dtype, desc)
 
+def dissect_event_event_handler(pevent, trace_seq, event):
+    addr = long(event['addr'])
+    data_len = long(event['len'])
+    fmt = pevent.file_endian + str(data_len) + 'B'
+    # Faked ethernet header with 0xbc01 ethertype (matches value in bcmdhd-dissector)
+    data = (0xfc, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x01,
+            0x01, 0x01, 0x01, 0x01, 0xbc, 0x01)
+    data = data + struct.unpack(fmt, str(event['hdata'].data))
+    trace_seq.puts("address: 0x%X length: %d (0x%X)\n%*s" % (addr, data_len, data_len, PAD, ""))
+    dump_hex(trace_seq, data)
+
+def dissect_ioctl_event_handler(pevent, trace_seq, event):
+    tx = int(event['tx'])
+    addr = long(event['addr'])
+    data_len = long(event['len'])
+    fmt = pevent.file_endian + str(data_len) + 'B'
+
+    if (tx > 0):
+        # Faked ethernet header with 0xbc02 ethertype (matches value in bcmdhd-dissector)
+	data = (0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0xfc, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xbc, 0x02)
+    else:
+        # Faked ethernet header with 0xbc03 ethertype (matches value in bcmdhd-dissector)
+	data = (0xfc, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x01,
+                0x01, 0x01, 0x01, 0x01, 0xbc, 0x03)
+
+    data = data + struct.unpack(fmt, str(event['hdata'].data))
+    trace_seq.puts("address: 0x%X length: %d (0x%X)\n%*s" % (addr, data_len, data_len, PAD, ""))
+    dump_hex(trace_seq, data)
+
 def register(pevent):
+    pevent.register_event_handler("brcmfmac", "brcmf_dissect_event",
+            lambda *args: dissect_ioctl_event_handler(pevent, *args))
+    pevent.register_event_handler("brcmfmac", "brcmf_dissect_ioctl",
+            lambda *args: dissect_ioctl_event_handler(pevent, *args))
+    pevent.register_event_handler("brcmfmac", "brcmf_dissect_data",
+            lambda *args: hexdump_event_handler(pevent, *args))
     pevent.register_event_handler("brcmfmac", "brcmf_hexdump",
             lambda *args: hexdump_event_handler(pevent, *args))
     pevent.register_event_handler("brcmfmac", "brcmf_bdchdr",
