@@ -427,7 +427,7 @@ def dissect_ioctl_event_handler(pevent, trace_seq, event):
 
 def register(pevent):
     pevent.register_event_handler("brcmfmac", "brcmf_dissect_event",
-            lambda *args: dissect_ioctl_event_handler(pevent, *args))
+            lambda *args: dissect_event_event_handler(pevent, *args))
     pevent.register_event_handler("brcmfmac", "brcmf_dissect_ioctl",
             lambda *args: dissect_ioctl_event_handler(pevent, *args))
     pevent.register_event_handler("brcmfmac", "brcmf_dissect_data",
